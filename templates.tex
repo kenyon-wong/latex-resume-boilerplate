@@ -1,0 +1,123 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[left=1in, right=1in, top=1in, bottom=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage[UTF8]{ctex}  % 加载 ctex 包，避免使用中文报错
+
+% 定义一个主题颜色，可以自行修改
+\definecolor{verdeolivo}{RGB}{16,110,190} % 
+
+\titleformat{\section}{\large\bfseries\color{verdeolivo}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}[runin]{\bfseries\color{verdeolivo}}{}{0em}{}[:]
+
+\begin{document}
+
+\pagestyle{empty}
+
+%\section*{\faIcon{address-card} Contact Information}
+\begin{center}
+    \textbf{\Huge 杨一笑} \\
+    \vspace{2mm}
+    \faIcon{briefcase} 质量工程师
+\end{center}
+
+\vspace{4mm}
+\begin{center}
+    \faIcon{phone} \href{https://wa.me/1234567890}{(123) 456-7890} \hspace{2cm}
+    \faIcon{envelope} \href{mailto:john.doe@example.com}{john.doe@example.com} \hspace{2cm}
+    % \faIcon{linkedin} \href{https://www.linkedin.com/in/johndoe/}{johndoe}
+\end{center}
+
+
+\space
+% 专业简介
+\section*{\faIcon{user} 专业简介}
+
+杨一笑者，不详其姓字，亦不知其何许人也。其人常蓬头垢面，衣若悬鹑而怡然自得于市井之间，人异之而求其名，但自称杨一笑也。
+
+尝有人问此一笑何谓？何不称二笑，三笑耶？答曰：君之所言差矣！一笑者，出门一笑大江横，狂歌走马遍天涯。须弥芥子，芥子须弥，一笑之间，天地万物尽于此矣。其所一笑者，安可尽言哉！此中真意，但拈花一笑，悠然心会可也。夫道可道，非常道，名可名，非常名，一笑者，若欲尽言其所一笑，则 殊失一笑之本意。且色即是空，空即是色，一笑者，称之二笑，三笑亦可也。青青翠竹，尽是真如，郁郁黄花，无非般若。若以色见我，以音声求我，是人行邪道， 不能见如来！若执着于一笑二笑三笑之异，则非我杨一笑也。言毕，大笑而去，但闻其临行之言：大道无行，千差有路，透得此关，乾坤独步！
+
+尝有人见其自述一首，曰：
+
+    茫茫乾坤一袖装，
+
+    天地幽冥任翱翔。
+
+    闲来啸傲三界外，
+
+    岂管他人话张狂！
+
+呜呼，此诚市井间之奇人也。古人云：小隐隐于山，大隐隐于市。信夫！
+
+后记：
+
+后杨一笑殁，葬云梦泽西鹿鸣山，其碑志曰：初从文，三年不中；后习武，校场发一矢，中鼓吏，逐之出；遂学医，有所成。自撰一良方，服之，卒。
+
+时人评价曰：孔子见老子，归而称 “吾今见老子，其犹龙也！” 而杨一笑其人，学究天人，才砾古今，有神鬼不测之机，夺天地造化之秘，如神龙见首不见尾，其犹龙乎？
+
+
+
+% 工作经历
+\section*{\faIcon{building} 工作经历}
+
+\subsection*{ABCD 医疗中心 \hfill 2022年4月 - 现在}
+\textit{ 质量工程师} \\
+从文
+
+习武
+
+从商
+
+躬耕
+
+学医
+
+\subsection*{农业工业RIMAC \hfill 2022年1月至2022年4月}
+\textit{ 监管助理} \\
+初从文，三年不中；改习武，校场发一矢，中鼓吏，逐之出；又从商，一遇骗，二遇盗，三遇匪；遂躬耕，一岁大旱，一岁大涝，一岁飞蝗；乃学医，有所成。自撰一良方，服之，卒。
+
+遂至地府，久候阎王升堂，不耐，问之，鬼卒曰：王阅足下卷宗，狂笑，休克于后堂，未醒……
+
+% 教育情况
+\section*{\faIcon{graduation-cap} 教育}
+
+\subsection*{哥斯达黎加大学 \hfill 进行中}
+\textit{化学工程师}\\
+论文题目：《实施故障模式与影响分析（FMEA）方法以检测电手术笔设备的风险，带烟雾排除以提高产品质量。》
+
+
+% 技能情况
+\section*{\faIcon{cogs} 技能}
+\begin{center}
+    \begin{itemize}[label=\faIcon{check}, itemsep=-3pt]
+        \item 过程验证
+        \item 质量法规和标准
+        \item 风险分析
+        \item 问题解决
+    \end{itemize}
+\end{center}
+
+% 证书情况
+\section*{\faIcon{certificate} 认证证书}
+\begin{itemize}[label=\faIcon{certificate}]
+    \item 读图
+    \item 医疗器械制造中的应用统计
+    \item 实验设计（DOE）
+    \item 根本原因分析
+\end{itemize}
+
+% 语言情况
+\section*{\faIcon{language} 语言}
+\begin{itemize}[label=\faIcon{globe}]
+    \item 西班牙语 - 母语
+    \item 英语 - 商业能力
+\end{itemize}
+
+% \section*{\faIcon{thumbs-up} References}
+% For reference contact Jane Smith\\ \textbf{\faIcon{linkedin} LinkedIn:} \href{https://www.linkedin.com/in/jane-smith/}{jane-smith}
+
+\end{document} 
