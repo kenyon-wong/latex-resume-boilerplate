@@ -154,6 +154,37 @@ jobs:
           }
         shell: powershell
 
+      - name: Install Chinese Fonts
+        run: |
+          try {
+            Write-Host "Installing Chinese font packages..." -ForegroundColor Yellow
+            
+            # 安装中文字体相关包
+            $tlmgr = "$env:TINYTEX_ROOT\bin\windows\tlmgr.bat"
+            $chineseFontPackages = @(
+              'ctex',
+              'xecjk', 
+              'fontspec',
+              'ulem',
+              'fandol'  # 包含免费的中文字体
+            )
+            
+            foreach ($package in $chineseFontPackages) {
+              Write-Host "Installing $package..." -ForegroundColor Cyan
+              & $tlmgr install $package
+              if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Failed to install $package, but continuing..."
+              }
+            }
+            
+            Write-Host "Chinese font packages installed" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "Failed to install Chinese fonts: $_"
+            exit 1
+          }
+        shell: powershell
+
       - name: Build LaTeX Document
         run: |
           try {
