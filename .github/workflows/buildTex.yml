@@ -1,0 +1,105 @@
+name: Download and Package Chocolatey Packages
+
+on: 
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Artifact retention days'
+        required: false
+        default: '7'
+        type: number
+
+env:
+  CHOCO_LIB_DIR: C:\ProgramData\chocolatey\lib
+  CHOCO_CACHE_DIR: C:\ProgramData\chocolatey\cache
+
+jobs:
+  download-packages:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Chocolatey
+        run: |
+          if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+            Write-Host "Installing Chocolatey..."
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+            
+            # 手动更新环境变量
+            $env:ChocolateyInstall = 'C:\ProgramData\chocolatey'
+            $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
+          } else {
+            Write-Host "Chocolatey already installed"
+          }
+          
+          # 验证安装
+          choco --version
+          Write-Host "Chocolatey installation verified"
+        shell: powershell
+
+      - name: Configure Chocolatey
+        run: |
+          # 确保 Chocolatey 可用
+          $env:ChocolateyInstall = 'C:\ProgramData\chocolatey'
+          $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
+          
+          choco feature enable -n allowGlobalConfirmation
+          choco config set commandExecutionTimeoutSeconds 14400
+          Write-Host "Chocolatey configured successfully"
+        shell: powershell
+
+      - name: Download Core Extensions
+        run: |
+          # 确保环境变量设置
+          $env:ChocolateyInstall = 'C:\ProgramData\chocolatey'
+          $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
+          
+          $packages = @(
+            'choco-cleaner',
+            'chocolatey-compatibility.extension',
+            'chocolatey-core.extension',
+            'chocolatey-dotnetfx.extension',
+            'chocolatey-fastanswers.extension',
+            'chocolatey-visualstudio.extension',
+            'chocolatey-windowsupdate.extension'
+          )
+          
+          foreach ($package in $packages) {
+            Write-Host "Downloading $package..." -ForegroundColor Yellow
+            try {
+              $result = choco install $package --download-only --no-progress --force -y 2>&1
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "[SUCCESS] Downloaded $package" -ForegroundColor Green
+              } else {
+                Write-Warning "[FAILED] Failed to download $package. Exit code: $LASTEXITCODE"
+                Write-Host $result
+              }
+            } catch {
+              Write-Warning "[ERROR] Exception downloading $package : $_"
+            }
+          }
+        shell: powershell
+
+
+      - name: Install TinyTeX
+        run: |
+          sudo choco install tinytex
+          tlmgr update --self --all
+          tlmgr install enumitem titlesec fontawesome5 parskip ctex
+
+      - name: Build TeX
+        run: |
+          xelatex templates.tex
+          rm examples/resume-zh.pdf
+          cp templates.pdf examples/resume-zh.pdf
+          git add templates.tex
+          git add xamples/resume-zh.pdf
+          git commit -m "test"
+          git push
+
+
