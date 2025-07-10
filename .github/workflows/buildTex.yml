@@ -1,4 +1,4 @@
-name: Download and Package Chocolatey Packages
+name: Build LaTeX Resume with Chocolatey Dependencies
 
 on: 
   workflow_dispatch:
@@ -8,58 +8,68 @@ on:
         required: false
         default: '7'
         type: number
+      skip_git_push:
+        description: 'Skip git push (for testing)'
+        required: false
+        default: false
+        type: boolean
 
 env:
-  CHOCO_LIB_DIR: C:\ProgramData\chocolatey\lib
-  CHOCO_CACHE_DIR: C:\ProgramData\chocolatey\cache
+  CHOCOLATEY_INSTALL: C:\ProgramData\chocolatey
+  TINYTEX_ROOT: C:\tools\TinyTeX
+  RESUME_OUTPUT: examples\resume-zh.pdf
 
 jobs:
-  download-packages:
+  build-resume:
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Install Chocolatey
+      - name: Setup Environment Variables
         run: |
-          if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
-            Write-Host "Installing Chocolatey..."
-            Set-ExecutionPolicy Bypass -Scope Process -Force
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          # 设置持久化环境变量
+          echo "ChocolateyInstall=$env:CHOCOLATEY_INSTALL" >> $env:GITHUB_ENV
+          echo "$env:CHOCOLATEY_INSTALL\bin" >> $env:GITHUB_PATH
+        shell: powershell
+
+      - name: Install and Configure Chocolatey
+        run: |
+          try {
+            if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+              Write-Host "Installing Chocolatey..." -ForegroundColor Yellow
+              Set-ExecutionPolicy Bypass -Scope Process -Force
+              [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+              Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+            } else {
+              Write-Host "Chocolatey already installed" -ForegroundColor Green
+            }
             
-            # 手动更新环境变量
-            $env:ChocolateyInstall = 'C:\ProgramData\chocolatey'
-            $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
-          } else {
-            Write-Host "Chocolatey already installed"
+            # 验证和配置
+            $chocoVersion = choco --version
+            Write-Host "Chocolatey version: $chocoVersion" -ForegroundColor Green
+            
+            # 配置 Chocolatey
+            choco feature enable -n allowGlobalConfirmation
+            choco config set commandExecutionTimeoutSeconds 14400
+            choco config set cacheLocation $env:TEMP\choco-cache
+            
+            Write-Host "Chocolatey configured successfully" -ForegroundColor Green
           }
-          
-          # 验证安装
-          choco --version
-          Write-Host "Chocolatey installation verified"
+          catch {
+            Write-Error "Failed to install/configure Chocolatey: $_"
+            exit 1
+          }
         shell: powershell
 
-      - name: Configure Chocolatey
+      - name: Download Chocolatey Extensions
         run: |
-          # 确保 Chocolatey 可用
-          $env:ChocolateyInstall = 'C:\ProgramData\chocolatey'
-          $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
-          
-          choco feature enable -n allowGlobalConfirmation
-          choco config set commandExecutionTimeoutSeconds 14400
-          Write-Host "Chocolatey configured successfully"
-        shell: powershell
-
-      - name: Download Core Extensions
-        run: |
-          # 确保环境变量设置
-          $env:ChocolateyInstall = 'C:\ProgramData\chocolatey'
-          $env:PATH = "$env:ChocolateyInstall\bin;$env:PATH"
-          
-          $packages = @(
+          $extensions = @(
             'choco-cleaner',
             'chocolatey-compatibility.extension',
             'chocolatey-core.extension',
@@ -69,37 +79,189 @@ jobs:
             'chocolatey-windowsupdate.extension'
           )
           
-          foreach ($package in $packages) {
-            Write-Host "Downloading $package..." -ForegroundColor Yellow
+          $failed = @()
+          $succeeded = @()
+          
+          foreach ($extension in $extensions) {
+            Write-Host "Downloading $extension..." -ForegroundColor Yellow
             try {
-              $result = choco install $package --download-only --no-progress --force -y 2>&1
+              $output = choco install $extension --download-only --no-progress --force -y 2>&1
               if ($LASTEXITCODE -eq 0) {
-                Write-Host "[SUCCESS] Downloaded $package" -ForegroundColor Green
+                Write-Host "[SUCCESS] Downloaded $extension" -ForegroundColor Green
+                $succeeded += $extension
               } else {
-                Write-Warning "[FAILED] Failed to download $package. Exit code: $LASTEXITCODE"
-                Write-Host $result
+                Write-Warning "[FAILED] Failed to download $extension. Exit code: $LASTEXITCODE"
+                $failed += $extension
               }
-            } catch {
-              Write-Warning "[ERROR] Exception downloading $package : $_"
             }
+            catch {
+              Write-Warning "[ERROR] Exception downloading $extension : $_"
+              $failed += $extension
+            }
+          }
+          
+          Write-Host "`nSummary:" -ForegroundColor Cyan
+          Write-Host "Succeeded: $($succeeded.Count)" -ForegroundColor Green
+          Write-Host "Failed: $($failed.Count)" -ForegroundColor Red
+          
+          if ($failed.Count -gt 0) {
+            Write-Host "Failed extensions: $($failed -join ', ')" -ForegroundColor Red
           }
         shell: powershell
 
-
       - name: Install TinyTeX
         run: |
-          choco install tinytex
-          C:\tools\TinyTeX\bin\windows\tlmgr.bat update --self --all
-          C:\tools\TinyTeX\bin\windows\tlmgr.bat install enumitem titlesec fontawesome5 parskip ctex
+          try {
+            Write-Host "Installing TinyTeX..." -ForegroundColor Yellow
+            choco install tinytex -y
+            
+            if (Test-Path "$env:TINYTEX_ROOT\bin\windows\tlmgr.bat") {
+              Write-Host "TinyTeX installed successfully" -ForegroundColor Green
+            } else {
+              throw "TinyTeX installation failed - tlmgr not found"
+            }
+          }
+          catch {
+            Write-Error "Failed to install TinyTeX: $_"
+            exit 1
+          }
+        shell: powershell
 
-      - name: Build TeX
+      - name: Update TinyTeX and Install Packages
         run: |
-          C:\tools\TinyTeX\bin\windows\xelatex.exe templates.tex
-          rm examples/resume-zh.pdf
-          cp templates.pdf examples/resume-zh.pdf
-          git add templates.tex
-          git add xamples/resume-zh.pdf
-          git commit -m "test"
-          git push
+          try {
+            $tlmgr = "$env:TINYTEX_ROOT\bin\windows\tlmgr.bat"
+            
+            Write-Host "Updating TinyTeX..." -ForegroundColor Yellow
+            & $tlmgr update --self --all
+            
+            Write-Host "Installing LaTeX packages..." -ForegroundColor Yellow
+            $packages = @('enumitem', 'titlesec', 'fontawesome5', 'parskip', 'ctex')
+            
+            foreach ($package in $packages) {
+              Write-Host "Installing $package..." -ForegroundColor Cyan
+              & $tlmgr install $package
+              if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Failed to install $package, but continuing..."
+              }
+            }
+            
+            Write-Host "LaTeX packages installation completed" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "Failed to update TinyTeX or install packages: $_"
+            exit 1
+          }
+        shell: powershell
 
+      - name: Build LaTeX Document
+        run: |
+          try {
+            $xelatex = "$env:TINYTEX_ROOT\bin\windows\xelatex.exe"
+            
+            if (!(Test-Path "templates.tex")) {
+              throw "templates.tex not found in repository"
+            }
+            
+            Write-Host "Building LaTeX document..." -ForegroundColor Yellow
+            & $xelatex templates.tex
+            
+            if ($LASTEXITCODE -ne 0) {
+              throw "XeLaTeX compilation failed with exit code $LASTEXITCODE"
+            }
+            
+            if (!(Test-Path "templates.pdf")) {
+              throw "PDF output not generated"
+            }
+            
+            Write-Host "LaTeX document built successfully" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "Failed to build LaTeX document: $_"
+            exit 1
+          }
+        shell: powershell
 
+      - name: Prepare Output
+        run: |
+          try {
+            # 确保输出目录存在
+            $outputDir = Split-Path $env:RESUME_OUTPUT -Parent
+            if (!(Test-Path $outputDir)) {
+              New-Item -ItemType Directory -Path $outputDir -Force
+              Write-Host "Created output directory: $outputDir" -ForegroundColor Green
+            }
+            
+            # 移除旧文件（如果存在）
+            if (Test-Path $env:RESUME_OUTPUT) {
+              Remove-Item $env:RESUME_OUTPUT -Force
+              Write-Host "Removed existing output file" -ForegroundColor Yellow
+            }
+            
+            # 复制新文件
+            Copy-Item "templates.pdf" $env:RESUME_OUTPUT -Force
+            Write-Host "Output prepared: $env:RESUME_OUTPUT" -ForegroundColor Green
+            
+            # 验证文件
+            if (Test-Path $env:RESUME_OUTPUT) {
+              $fileSize = (Get-Item $env:RESUME_OUTPUT).Length
+              Write-Host "Output file size: $fileSize bytes" -ForegroundColor Cyan
+            }
+          }
+          catch {
+            Write-Error "Failed to prepare output: $_"
+            exit 1
+          }
+        shell: powershell
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resume-pdf
+          path: ${{ env.RESUME_OUTPUT }}
+          retention-days: ${{ inputs.retention_days }}
+
+      - name: Commit and Push Changes
+        if: ${{ !inputs.skip_git_push }}
+        run: |
+          try {
+            # 配置 Git
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            # 检查是否有变更
+            git add templates.tex
+            git add $env:RESUME_OUTPUT
+            
+            $status = git status --porcelain
+            if ($status) {
+              Write-Host "Changes detected, committing..." -ForegroundColor Yellow
+              git commit -m "Auto-update: Build LaTeX resume [skip ci]"
+              git push
+              Write-Host "Changes pushed successfully" -ForegroundColor Green
+            } else {
+              Write-Host "No changes to commit" -ForegroundColor Cyan
+            }
+          }
+          catch {
+            Write-Warning "Failed to commit/push changes: $_"
+            Write-Host "This is non-critical, continuing..." -ForegroundColor Yellow
+          }
+        shell: powershell
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # 清理临时文件
+          $tempFiles = @('*.aux', '*.log', '*.out', '*.toc', '*.fdb_latexmk', '*.fls')
+          foreach ($pattern in $tempFiles) {
+            Get-ChildItem -Path . -Name $pattern -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          }
+          
+          # 清理 Chocolatey 缓存
+          if (Get-Command choco -ErrorAction SilentlyContinue) {
+            choco cache clean --expired
+          }
+          
+          Write-Host "Cleanup completed" -ForegroundColor Green
+        shell: powershell
