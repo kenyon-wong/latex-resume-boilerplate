@@ -19,7 +19,7 @@
 
 1. 克隆仓库
 ```bash
-git clone https://github.com/yourusername/latex-resume-boilerplate.git
+git clone https://github.com/kenyon-wong/latex-resume-boilerplate.git
 ```
 
 2. 编译简历
