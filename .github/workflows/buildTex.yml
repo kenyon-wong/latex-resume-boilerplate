@@ -89,12 +89,12 @@ jobs:
       - name: Install TinyTeX
         run: |
           choco install tinytex
-          tlmgr update --self --all
-          tlmgr install enumitem titlesec fontawesome5 parskip ctex
+          C:\tools\TinyTeX\bin\windows\tlmgr.bat update --self --all
+          C:\tools\TinyTeX\bin\windows\tlmgr.bat install enumitem titlesec fontawesome5 parskip ctex
 
       - name: Build TeX
         run: |
-          xelatex templates.tex
+          C:\tools\TinyTeX\bin\windows\xelatex.exe templates.tex
           rm examples/resume-zh.pdf
           cp templates.pdf examples/resume-zh.pdf
           git add templates.tex
